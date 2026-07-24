@@ -1,0 +1,19 @@
+services:
+  mtproto-dc-config:
+    # After the first GHCR push, replace OWNER with your GitHub username/org.
+    image: ghcr.io/OWNER/mtproto-dc-config:latest
+    # For local development instead of GHCR:
+    # build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      # Daily at 00:00 UTC. Example for 00:00 CST: "0 16 * * *"
+      CRON_SCHEDULE: "0 0 * * *"
+      TZ: UTC
+    volumes:
+      - mtproto-dc-data:/data
+
+volumes:
+  mtproto-dc-data:

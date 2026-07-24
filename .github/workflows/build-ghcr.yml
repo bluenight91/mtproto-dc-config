@@ -1,0 +1,118 @@
+name: Build and push GHCR image
+
+on:
+  schedule:
+    # Check upstream once a day (same idea as DockerHub-AutoBuild).
+    - cron: "0 3 * * *"
+  push:
+    branches: [main, master]
+    paths:
+      - Dockerfile
+      - entrypoint.sh
+      - serve.py
+      - docker-compose.yml
+      - .github/workflows/build-ghcr.yml
+  workflow_dispatch:
+
+env:
+  UPSTREAM_REPO: surge-networks/MTProtoDCConfigGenerator
+  UPSTREAM_REF: main
+  IMAGE_NAME: mtproto-dc-config
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve upstream commit
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LATEST_SHA=$(gh api "repos/${UPSTREAM_REPO}/commits/${UPSTREAM_REF}" --jq .sha)
+          SHORT_SHA="${LATEST_SHA:0:12}"
+          echo "Latest upstream SHA: ${LATEST_SHA}"
+
+          if [ -f .upstream-sha ]; then
+            CURRENT_SHA=$(tr -d '[:space:]' < .upstream-sha)
+          else
+            CURRENT_SHA=""
+          fi
+
+          FORCE_BUILD=false
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FORCE_BUILD=true
+          fi
+
+          if [ "${FORCE_BUILD}" = "true" ] || [ "${LATEST_SHA}" != "${CURRENT_SHA}" ]; then
+            echo "build_needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No upstream change; skip build."
+            echo "build_needed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "sha=${LATEST_SHA}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        if: steps.upstream.outputs.build_needed == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.upstream.outputs.build_needed == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.upstream.outputs.build_needed == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        if: steps.upstream.outputs.build_needed == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=sha-${{ steps.upstream.outputs.short_sha }}
+
+      - name: Build and push
+        if: steps.upstream.outputs.build_needed == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GENERATOR_REF=${{ steps.upstream.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update tracked upstream SHA
+        if: steps.upstream.outputs.build_needed == 'true'
+        run: |
+          echo "${{ steps.upstream.outputs.sha }}" > .upstream-sha
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .upstream-sha
+          if git diff --staged --quiet; then
+            echo "upstream SHA already recorded"
+          else
+            git commit -m "chore: track upstream ${{ steps.upstream.outputs.short_sha }}"
+            git push
+          fi
