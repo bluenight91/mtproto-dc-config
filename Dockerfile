@@ -30,14 +30,15 @@ RUN apt-get update \
   && curl -fsSL -o /usr/local/bin/supercronic \
     "https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-${SC_ARCH}" \
   && chmod +x /usr/local/bin/supercronic \
-  && useradd --system --uid 10001 --home-dir /data --create-home app
+  && useradd --system --uid 10001 --home-dir /home/app --create-home app \
+  && mkdir -p /data \
+  && chown app:app /data
 
 COPY --from=build /src/target/release/mtproto-dc-config /usr/local/bin/mtproto-dc-config
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY serve.py /usr/local/bin/serve.py
 
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/serve.py \
-  && chown -R app:app /data
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/serve.py
 
 ENV PORT=8080 \
     DATA_DIR=/data \
@@ -50,6 +51,6 @@ USER app
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
-  CMD python3 -c "import os,urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('PORT','8080')}/mtproto-dc-config.json\", timeout=3)"
+  CMD python3 -c "import os,urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ.get('PORT','8080')}/\", timeout=3)"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

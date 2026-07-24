@@ -37,9 +37,10 @@ ghcr.io/<你的用户名>/mtproto-dc-config:sha-<短SHA>
 - **镜像更新**：仅在上游 generator 代码更新时重建（Actions）
 - **JSON 日更**：在运行中的容器内 cron 完成，不依赖重新拉镜像
 
-访问：
+访问（根路径与下面路径等价，都直接返回 JSON）：
 
 ```text
+https://你的域名/
 https://你的域名/mtproto-dc-config.json
 ```
 
