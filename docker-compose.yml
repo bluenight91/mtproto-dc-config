@@ -1,7 +1,6 @@
 services:
   mtproto-dc-config:
-    # After the first GHCR push, replace OWNER with your GitHub username/org.
-    image: ghcr.io/OWNER/mtproto-dc-config:latest
+    image: ghcr.io/bluenight91/mtproto-dc-config:latest
     # For local development instead of GHCR:
     # build: .
     restart: unless-stopped
