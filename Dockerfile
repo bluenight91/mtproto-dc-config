@@ -36,9 +36,11 @@ RUN apt-get update \
 
 COPY --from=build /src/target/release/mtproto-dc-config /usr/local/bin/mtproto-dc-config
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY generate.sh /usr/local/bin/generate.sh
+COPY normalize_config.py /usr/local/bin/normalize_config.py
 COPY serve.py /usr/local/bin/serve.py
 
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/serve.py
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/generate.sh /usr/local/bin/normalize_config.py /usr/local/bin/serve.py
 
 ENV PORT=8080 \
     DATA_DIR=/data \

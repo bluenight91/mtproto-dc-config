@@ -10,9 +10,9 @@ CRON_FILE=${CRON_FILE:-/tmp/mtproto-crontab}
 mkdir -p "$DATA_DIR"
 
 echo "Generating MTProto DC config..."
-mtproto-dc-config "$OUTPUT_FILE"
+/usr/local/bin/generate.sh "$OUTPUT_FILE"
 
-printf '%s mtproto-dc-config %s\n' "$CRON_SCHEDULE" "$OUTPUT_FILE" > "$CRON_FILE"
+printf '%s /usr/local/bin/generate.sh %s\n' "$CRON_SCHEDULE" "$OUTPUT_FILE" > "$CRON_FILE"
 echo "Cron schedule: $CRON_SCHEDULE"
 
 supercronic "$CRON_FILE" &
