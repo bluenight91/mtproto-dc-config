@@ -36,6 +36,7 @@ ghcr.io/<你的用户名>/mtproto-dc-config:sha-<短SHA>
 
 - **镜像更新**：仅在上游 generator 代码更新时重建（Actions）
 - **JSON 日更**：在运行中的容器内 cron 完成，不依赖重新拉镜像
+- **去重**：生成后会把 IPv6 规范成压缩形式，并对同一 `(dc, ip, port)` 合并为一条（`flags` 按位或，例如普通 + STATIC → 保留 STATIC）
 
 访问（根路径与下面路径等价，都直接返回 JSON）：
 
