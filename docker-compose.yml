@@ -10,6 +10,8 @@ services:
       PORT: "8080"
       # Daily at 00:00 UTC. Example for 00:00 CST: "0 16 * * *"
       CRON_SCHEDULE: "0 0 * * *"
+      # Drop Fake-TLS / SECRET endpoints (e.g. 194.x with www.google.com SNI)
+      DROP_SECRET_ENDPOINTS: "1"
       TZ: UTC
     volumes:
       - mtproto-dc-data:/data

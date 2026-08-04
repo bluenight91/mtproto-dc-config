@@ -30,13 +30,14 @@ ghcr.io/<你的用户名>/mtproto-dc-config:sha-<短SHA>
 1. 用 Docker Compose / Docker image 部署
 2. 镜像填 `ghcr.io/<你的用户名>/mtproto-dc-config:latest`
 3. 端口 **8080**，绑域名
-4. 可选环境变量：`CRON_SCHEDULE`、`TZ`、`PORT`
+4. 可选环境变量：`CRON_SCHEDULE`、`TZ`、`PORT`、`DROP_SECRET_ENDPOINTS`（默认 `1`）
 
 说明：
 
 - **镜像更新**：仅在上游 generator 代码更新时重建（Actions）
 - **JSON 日更**：在运行中的容器内 cron 完成，不依赖重新拉镜像
 - **去重**：生成后会把 IPv6 规范成压缩形式，并对同一 `(dc, ip, port)` 合并为一条（`flags` 按位或，例如普通 + STATIC → 保留 STATIC）
+- **过滤 SECRET**：默认去掉带 `secret` / Fake-TLS（`0xee` + Google SNI 等）的入口。这类 IP 常不在 Telegram 分流名单里，容易命中兜底规则并疯狂重试。若确实需要，设 `DROP_SECRET_ENDPOINTS=0`。
 
 访问（根路径与下面路径等价，都直接返回 JSON）：
 
