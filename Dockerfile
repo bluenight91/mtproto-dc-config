@@ -46,6 +46,8 @@ ENV PORT=8080 \
     DATA_DIR=/data \
     OUTPUT_FILE=/data/mtproto-dc-config.json \
     CRON_SCHEDULE="0 0 * * *" \
+    DROP_SECRET_ENDPOINTS=0 \
+    MERGE_FLAGS=1 \
     TZ=UTC
 
 WORKDIR /data

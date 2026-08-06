@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
-"""Normalize addresses and dedupe MTProto DC config options."""
+"""Post-process MTProto DC config: optional secret filter and flag merge."""
 
 from __future__ import annotations
 
 import argparse
+import base64
 import ipaddress
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
 
 DC_OPTION_FLAG_SECRET = 1 << 10
+FAKE_TLS_PREFIX = 0xEE
+
+
+def env_flag(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def normalize_ip(raw: str) -> str:
@@ -21,16 +31,58 @@ def normalize_ip(raw: str) -> str:
         return raw.strip()
 
 
+def secret_bytes(option: dict[str, Any]) -> bytes | None:
+    secret = option.get("secret")
+    if not isinstance(secret, str) or not secret:
+        return None
+    try:
+        return base64.b64decode(secret, validate=False)
+    except Exception:
+        return None
+
+
+def is_secret_endpoint(option: dict[str, Any]) -> bool:
+    if int(option.get("flags", 0)) & DC_OPTION_FLAG_SECRET:
+        return True
+    raw = secret_bytes(option)
+    if raw is None:
+        return False
+    return True
+
+
+def is_fake_tls_endpoint(option: dict[str, Any]) -> bool:
+    raw = secret_bytes(option)
+    return raw is not None and len(raw) > 0 and raw[0] == FAKE_TLS_PREFIX
+
+
+def filter_secret_endpoints(config: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    options = config.get("options")
+    if not isinstance(options, list):
+        raise ValueError("config.options must be a list")
+
+    kept: list[dict[str, Any]] = []
+    dropped = 0
+    for raw in options:
+        if not isinstance(raw, dict):
+            continue
+        if is_secret_endpoint(raw) or is_fake_tls_endpoint(raw):
+            dropped += 1
+            continue
+        kept.append(dict(raw))
+
+    cleaned = dict(config)
+    cleaned["options"] = kept
+    return cleaned, dropped
+
+
 def merge_options(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
     merged = dict(existing)
     merged["flags"] = int(existing.get("flags", 0)) | int(incoming.get("flags", 0))
     merged["ip"] = normalize_ip(str(existing.get("ip", "")))
 
-    # Prefer an explicit secret when either side carries one.
     if "secret" in incoming and "secret" not in merged:
         merged["secret"] = incoming["secret"]
     elif "secret" in incoming and "secret" in merged:
-        # Keep the secret that belongs with the SECRET flag when possible.
         if int(incoming.get("flags", 0)) & DC_OPTION_FLAG_SECRET:
             merged["secret"] = incoming["secret"]
 
@@ -39,7 +91,8 @@ def merge_options(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[st
     return merged
 
 
-def dedupe_config(config: dict[str, Any]) -> tuple[dict[str, Any], int]:
+def merge_flags_config(config: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    """Normalize IPs and merge options that share (dc, ip, port) via flags OR."""
     options = config.get("options")
     if not isinstance(options, list):
         raise ValueError("config.options must be a list")
@@ -70,15 +123,47 @@ def dedupe_config(config: dict[str, Any]) -> tuple[dict[str, Any], int]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=Path, help="Path to mtproto-dc-config.json")
+    parser.add_argument(
+        "--drop-secret",
+        choices=("0", "1"),
+        help="Override DROP_SECRET_ENDPOINTS (1=drop SECRET/Fake-TLS endpoints)",
+    )
+    parser.add_argument(
+        "--merge-flags",
+        choices=("0", "1"),
+        help="Override MERGE_FLAGS (1=dedupe same dc/ip/port and OR flags)",
+    )
     args = parser.parse_args()
+
+    # Defaults: keep secrets; merge duplicate endpoints (current historical behavior).
+    drop_secret = (
+        args.drop_secret == "1"
+        if args.drop_secret is not None
+        else env_flag("DROP_SECRET_ENDPOINTS", False)
+    )
+    merge_flags = (
+        args.merge_flags == "1"
+        if args.merge_flags is not None
+        else env_flag("MERGE_FLAGS", True)
+    )
 
     path: Path = args.path
     config = json.loads(path.read_text(encoding="utf-8"))
-    cleaned, removed = dedupe_config(config)
-    path.write_text(json.dumps(cleaned, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    before = len(config.get("options", []))
+    dropped_secret = 0
+    removed_dupes = 0
+
+    if drop_secret:
+        config, dropped_secret = filter_secret_endpoints(config)
+
+    if merge_flags:
+        config, removed_dupes = merge_flags_config(config)
+
+    path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(
-        f"Normalized {path}: {len(config.get('options', []))} -> {len(cleaned['options'])} options"
-        f" (removed {removed} duplicates)",
+        f"Normalized {path}: {before} -> {len(config.get('options', []))} options"
+        f" (drop_secret={int(drop_secret)} dropped={dropped_secret},"
+        f" merge_flags={int(merge_flags)} removed={removed_dupes})",
         file=sys.stderr,
     )
     return 0

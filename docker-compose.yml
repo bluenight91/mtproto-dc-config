@@ -11,6 +11,10 @@ services:
       # Daily at 00:00 UTC. Example for 00:00 CST: "0 16 * * *"
       CRON_SCHEDULE: "0 0 * * *"
       TZ: UTC
+      # 1 = drop SECRET / Fake-TLS endpoints (e.g. Google SNI). 0 = keep them.
+      DROP_SECRET_ENDPOINTS: "0"
+      # 1 = normalize IPv6 and merge same (dc, ip, port) with flags OR. 0 = leave as generated.
+      MERGE_FLAGS: "1"
     volumes:
       - mtproto-dc-data:/data
 
