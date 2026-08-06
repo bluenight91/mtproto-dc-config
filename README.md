@@ -34,7 +34,7 @@ ghcr.io/<你的用户名>/mtproto-dc-config:sha-<短SHA>
 4. 可选环境变量：
    - `CRON_SCHEDULE`、`TZ`、`PORT`
    - `DROP_SECRET_ENDPOINTS`：`1` 丢掉带 `secret` / Fake-TLS 的入口，`0` 保留（默认 `0`）
-   - `MERGE_FLAGS`：`1` 规范化 IPv6 并对同一 `(dc, ip, port)` 按位或合并 flags，`0` 不合并（默认 `1`）
+   - `MERGE_FLAGS`：`1` 对同一 `(dc, ip, port)` 按位或合并 flags，`0` 不合并（默认 `1`）。无论开关如何，IPv6 都会规范成压缩形式。
 
 说明：
 

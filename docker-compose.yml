@@ -13,7 +13,7 @@ services:
       TZ: UTC
       # 1 = drop SECRET / Fake-TLS endpoints (e.g. Google SNI). 0 = keep them.
       DROP_SECRET_ENDPOINTS: "0"
-      # 1 = normalize IPv6 and merge same (dc, ip, port) with flags OR. 0 = leave as generated.
+      # IPv6 is always normalized. 1 = also merge same (dc, ip, port) with flags OR.
       MERGE_FLAGS: "1"
     volumes:
       - mtproto-dc-data:/data

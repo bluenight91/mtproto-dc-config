@@ -75,6 +75,25 @@ def filter_secret_endpoints(config: dict[str, Any]) -> tuple[dict[str, Any], int
     return cleaned, dropped
 
 
+def normalize_option_ips(config: dict[str, Any]) -> dict[str, Any]:
+    """Always canonicalize IPv4/IPv6 address strings."""
+    options = config.get("options")
+    if not isinstance(options, list):
+        raise ValueError("config.options must be a list")
+
+    normalized: list[dict[str, Any]] = []
+    for raw in options:
+        if not isinstance(raw, dict):
+            continue
+        option = dict(raw)
+        option["ip"] = normalize_ip(str(option.get("ip", "")))
+        normalized.append(option)
+
+    cleaned = dict(config)
+    cleaned["options"] = normalized
+    return cleaned
+
+
 def merge_options(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
     merged = dict(existing)
     merged["flags"] = int(existing.get("flags", 0)) | int(incoming.get("flags", 0))
@@ -92,7 +111,7 @@ def merge_options(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[st
 
 
 def merge_flags_config(config: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    """Normalize IPs and merge options that share (dc, ip, port) via flags OR."""
+    """Merge options that share (dc, ip, port) via flags OR. IPs must already be normalized."""
     options = config.get("options")
     if not isinstance(options, list):
         raise ValueError("config.options must be a list")
@@ -131,11 +150,11 @@ def main() -> int:
     parser.add_argument(
         "--merge-flags",
         choices=("0", "1"),
-        help="Override MERGE_FLAGS (1=dedupe same dc/ip/port and OR flags)",
+        help="Override MERGE_FLAGS (1=merge same dc/ip/port with flags OR)",
     )
     args = parser.parse_args()
 
-    # Defaults: keep secrets; merge duplicate endpoints (current historical behavior).
+    # Defaults: keep secrets; merge duplicate endpoints after IP normalize.
     drop_secret = (
         args.drop_secret == "1"
         if args.drop_secret is not None
@@ -155,6 +174,9 @@ def main() -> int:
 
     if drop_secret:
         config, dropped_secret = filter_secret_endpoints(config)
+
+    # IPv6/IPv4 canonicalization always runs.
+    config = normalize_option_ips(config)
 
     if merge_flags:
         config, removed_dupes = merge_flags_config(config)
