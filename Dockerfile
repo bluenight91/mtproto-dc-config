@@ -5,17 +5,25 @@ ARG GENERATOR_REF=main
 FROM rust:1-bookworm AS build
 ARG GENERATOR_REF
 WORKDIR /src
+ENV DEBIAN_FRONTEND=noninteractive \
+    CARGO_TERM_COLOR=never
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git ca-certificates \
-  && rm -rf /var/lib/apt/lists/* \
-  && git init \
+  && rm -rf /var/lib/apt/lists/*
+RUN git init \
   && git remote add origin https://github.com/surge-networks/MTProtoDCConfigGenerator.git \
   && git fetch --depth 1 origin "${GENERATOR_REF}" \
-  && git checkout --force FETCH_HEAD \
-  && cargo build --release --locked
+  && git checkout --force FETCH_HEAD
+# Cache crates + target across CI builds; copy the binary out of the cache mount.
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,target=/src/target,sharing=locked \
+    cargo build --release --locked \
+    && cp /src/target/release/mtproto-dc-config /mtproto-dc-config
 
 FROM debian:bookworm-slim
 ARG TARGETARCH
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -30,11 +38,11 @@ RUN apt-get update \
   && curl -fsSL -o /usr/local/bin/supercronic \
     "https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-${SC_ARCH}" \
   && chmod +x /usr/local/bin/supercronic \
-  && useradd --system --uid 10001 --home-dir /home/app --create-home app \
+  && useradd --uid 10001 --home-dir /home/app --create-home app \
   && mkdir -p /data \
   && chown app:app /data
 
-COPY --from=build /src/target/release/mtproto-dc-config /usr/local/bin/mtproto-dc-config
+COPY --from=build /mtproto-dc-config /usr/local/bin/mtproto-dc-config
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY generate.sh /usr/local/bin/generate.sh
 COPY normalize_config.py /usr/local/bin/normalize_config.py

@@ -8,9 +8,10 @@
 
 GitHub Actions 每天检查上游 `main` 的 commit SHA（上游目前没有 Release）：
 
-- SHA 变化 → 构建多架构镜像并推到 GHCR
+- SHA 变化 → 构建 `linux/amd64` 镜像并推到 GHCR（已去掉 arm64/QEMU）
 - SHA 不变 → 跳过构建（几乎不消耗 Actions 分钟）
 - 本仓库 Dockerfile / 脚本变更，或手动 `workflow_dispatch` → 强制构建
+- BuildKit 缓存 Cargo registry/git/target，重复构建更快
 
 镜像：
 
