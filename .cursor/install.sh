@@ -41,5 +41,5 @@ else
   echo "[install] installed generator to ${BIN_PATH}"
 fi
 
-"${BIN_PATH}" --help >/dev/null 2>&1 || true
+test -x "${BIN_PATH}"
 echo "[install] done"
