@@ -329,7 +329,7 @@ def collect_endpoints() -> tuple[list[dict[str, Any]], list[str]]:
                 added += 1
             notes.append(f"{name}: ok (+{added}, raw {len(endpoints)})")
         except Exception as error:  # noqa: BLE001 - best-effort sources
-            notes.append(f"{name}: failed ({error})")
+            notes.append(f"{name}: failed ({error!r})")
     return collected, notes
 
 
