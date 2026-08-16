@@ -10,6 +10,7 @@ on:
       - Dockerfile
       - entrypoint.sh
       - generate.sh
+      - merge_extra_backups.py
       - normalize_config.py
       - serve.py
       - .github/workflows/build-ghcr.yml
