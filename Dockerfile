@@ -29,6 +29,7 @@ RUN apt-get update \
     ca-certificates \
     curl \
     python3 \
+    python3-cryptography \
   && rm -rf /var/lib/apt/lists/* \
   && case "${TARGETARCH}" in \
        amd64) SC_ARCH=amd64 ;; \
@@ -45,10 +46,11 @@ RUN apt-get update \
 COPY --from=build /mtproto-dc-config /usr/local/bin/mtproto-dc-config
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY generate.sh /usr/local/bin/generate.sh
+COPY merge_extra_backups.py /usr/local/bin/merge_extra_backups.py
 COPY normalize_config.py /usr/local/bin/normalize_config.py
 COPY serve.py /usr/local/bin/serve.py
 
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/generate.sh /usr/local/bin/normalize_config.py /usr/local/bin/serve.py
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/generate.sh /usr/local/bin/merge_extra_backups.py /usr/local/bin/normalize_config.py /usr/local/bin/serve.py
 
 ENV PORT=8080 \
     DATA_DIR=/data \
@@ -56,6 +58,7 @@ ENV PORT=8080 \
     CRON_SCHEDULE="0 0 * * *" \
     DROP_SECRET_ENDPOINTS=0 \
     MERGE_FLAGS=1 \
+    EXTRA_BACKUP_SOURCES=1 \
     TZ=UTC
 
 WORKDIR /data

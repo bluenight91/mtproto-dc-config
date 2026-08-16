@@ -35,12 +35,13 @@ ghcr.io/<你的用户名>/mtproto-dc-config:sha-<短SHA>
    - `CRON_SCHEDULE`、`TZ`、`PORT`
    - `DROP_SECRET_ENDPOINTS`：`1` 丢掉带 `secret` / Fake-TLS 的入口，`0` 保留（默认 `0`）
    - `MERGE_FLAGS`：`1` 对同一 `(dc, ip, port)` 按位或合并 flags，`0` 不合并（默认 `1`）。无论开关如何，IPv6 都会规范成压缩形式。
+   - `EXTRA_BACKUP_SOURCES`：`1` 额外拉取 Firebase / Firestore / DoH / App Engine 等生产备份源并合并（可补上第二路 Fake-TLS 等），`0` 关闭（默认 `1`）
 
 说明：
 
 - **镜像更新**：仅在上游 generator 代码更新时重建（Actions）
 - **JSON 日更**：在运行中的容器内 cron 完成，不依赖重新拉镜像
-- **后处理**：由上面两个环境变量分别控制；都为 `0` 时接近上游原始输出
+- **后处理**：由上面环境变量分别控制；普通 DC IP 仍可能因 `help.getConfig` 快照时间与他人略有不同
 
 访问（根路径与下面路径等价，都直接返回 JSON）：
 
